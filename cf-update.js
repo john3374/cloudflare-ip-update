@@ -23,6 +23,9 @@ const updateDNS = async () => {
           const json = JSON.parse(body);
           // don't update on same IP
           if (json.result.content !== ip) {
+            const ntfy = https.request({ hostname: "ntfy.akfn.net", port: 443, path: "/cf-ip", method: "POST" });
+            ntfy.write(`New IP for ${domains[0].name} ${ip}`);
+            ntfy.end();
             console.log("new IP detected:", ip);
             for (let i = 0, il = domains.length; i < il; i++) {
               const { name, zone, dns } = domains[i];
