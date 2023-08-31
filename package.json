@@ -1,0 +1,14 @@
+{
+  "name": "cf-update",
+  "version": "1.0.0",
+  "description": "",
+  "main": "cf-update.js",
+  "scripts": {
+    "start": "node cf-update.js"
+  },
+  "author": "John Lee",
+  "license": "ISC",
+  "dependencies": {
+    "dotenv": "^16.3.1"
+  }
+}
