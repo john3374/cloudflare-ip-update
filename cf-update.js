@@ -1,5 +1,5 @@
 require('dotenv').config();
-const ntfy_bearer = process.env.BEARER;
+const ntfy_bearer = process.env.NTFY_TOKEN;
 const https = require('https');
 // domains.js must be created which contains array of domains length at least 1 (ie. [{name,zone,dns}])
 const domains = require('./domains');
