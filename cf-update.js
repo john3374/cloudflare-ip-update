@@ -24,7 +24,6 @@ const updateDNS = async () => {
         res.on('end', () => {
           const json = JSON.parse(body);
           // don't update on same IP
-          console.log(json.result.content, ip);
           if (json.result.content !== ip) {
             const ntfy = https.request({
               hostname: 'ntfy.akfn.net',
