@@ -4,17 +4,18 @@ const https = require('https');
 // domains.js must be created which contains array of domains length at least 1 (ie. [{name,zone,dns}])
 const domains = require('./domains');
 const getIP = () =>
-  new Promise((resolve, reject) =>
-    https.get('https://api.ipify.org', res => {
+  new Promise((resolve, reject) => {
+    const req = https.get('https://api.ipify.org', res => {
       res.on('data', resolve);
       res.on('error', reject);
-    })
-  );
+    });
+    req.on('error', reject);
+  });
 const updateDNS = async () => {
   try {
     const ip = (await getIP()) + '';
     // use akfn.net to detect ip change
-    https.get(
+    const cfReq = https.get(
       `https://api.cloudflare.com/client/v4/zones/${domains[0].zone}/dns_records/${domains[0].dns}`,
       { headers: { Authorization: `Bearer ${process.env.CF_TOKEN}` } },
       res => {
@@ -23,6 +24,7 @@ const updateDNS = async () => {
         res.on('end', () => {
           const json = JSON.parse(body);
           // don't update on same IP
+          console.log(json.result.content, ip);
           if (json.result.content !== ip) {
             const ntfy = https.request({
               hostname: 'ntfy.akfn.net',
@@ -31,43 +33,45 @@ const updateDNS = async () => {
               method: 'POST',
               headers: { Authorization: `Bearer ${ntfy_bearer}` },
             });
+            ntfy.on('error', e => console.error('error on ntfy request', e));
             ntfy.write(`New IP for ${domains[0].name} ${ip}`);
             ntfy.end();
             console.log('new IP detected:', ip);
             for (let i = 0, il = domains.length; i < il; i++) {
               const { name, zone, dns } = domains[i];
               const now = new Date();
-              https
-                .request(
-                  {
-                    host: 'api.cloudflare.com',
-                    path: `/client/v4/zones/${zone}/dns_records/${dns}`,
-                    method: 'PUT',
-                    headers: {
-                      Authorization: `Bearer ${process.env.CF_TOKEN}`,
-                      'Content-Type': 'application/json',
-                    },
+              const putReq = https.request(
+                {
+                  host: 'api.cloudflare.com',
+                  path: `/client/v4/zones/${zone}/dns_records/${dns}`,
+                  method: 'PUT',
+                  headers: {
+                    Authorization: `Bearer ${process.env.CF_TOKEN}`,
+                    'Content-Type': 'application/json',
                   },
-                  res => res.on('error', e => console.log(name, e))
-                )
-                .end(
-                  JSON.stringify({
-                    type: 'A',
-                    name: name,
-                    content: ip,
-                    ttl: 1,
-                    proxied: true,
-                    comment: `updated at ${now.toISOString()}`,
-                  })
-                );
+                },
+                res => res.on('error', e => console.error(name, 'response error', e))
+              );
+              putReq.on('error', e => console.error(name, 'request error', e));
+              putReq.end(
+                JSON.stringify({
+                  type: 'A',
+                  name: name,
+                  content: ip,
+                  ttl: 1,
+                  proxied: true,
+                  comment: `updated at ${now.toISOString()}`,
+                })
+              );
             }
           }
         });
-        res.on('error', e => console.log('error on dns GET', e));
+        res.on('error', e => console.error('error on dns GET response', e));
       }
     );
+    cfReq.on('error', e => console.error('error on dns GET request', e));
   } catch (e) {
-    console.log('error on IP GET', e);
+    console.error('error on IP GET', e);
   }
 };
 updateDNS();
